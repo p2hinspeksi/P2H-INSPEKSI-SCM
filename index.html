@@ -638,7 +638,7 @@
                 if (targetRecord.status === 'Pending') {
                     // ACTION 1: SPV memvalidasi berkas -> Status menjadi 'Pending HOD'
                     if (!sys2Sigs.sigSpv || !sys2Sigs.nameSpv.trim()) {
-                        alert("⚠️ Supervisor SCM wajib mengisi nama dan menandatangani form");
+                        alert("⚠️ Supervisor SCM wajib mengisi nama dan menandatangani berkas sebelum persetujuan!");
                         return;
                     }
                     const updatedRecord = { 
@@ -662,7 +662,7 @@
                 } else if (targetRecord.status === 'Pending HOD') {
                     // ACTION 2: HOD memvalidasi berkas -> Status menjadi 'Approved' lalu Dokumen Dicetak
                     if (!sys2Sigs.sigHead || !sys2Sigs.nameHead.trim()) {
-                        alert("⚠️ SCM Department Head wajib mengisi nama dan menandatangani form");
+                        alert("⚠️ SCM Department Head wajib mengisi nama dan menandatangani berkas sebelum persetujuan akhir!");
                         return;
                     }
                     const updatedRecord = { 
@@ -928,20 +928,34 @@
                                             <div className="text-xs md:text-sm font-extrabold text-red-600 mt-1 uppercase tracking-widest bg-red-50 px-3 py-1.5 inline-block rounded-full border border-red-100">{unitDataScript1[sys1Unit].name}</div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs mb-6 text-slate-900 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                            <div className="space-y-2">
-                                                <div><label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">MODEL UNIT</label><input type="text" className="bg-white border border-slate-300 rounded-lg w-full p-2 font-bold text-slate-800 outline-none mt-1 focus:border-slate-400" value={sys1Meta.model} onChange={e => setSys1Meta({...sys1Meta, model: e.target.value})} disabled={sys1ActiveRecordId!==null} /></div>
-                                                <div><label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">UNIT NUMBER</label><input type="text" className="bg-white border border-slate-300 rounded-lg w-full p-2 font-bold text-slate-800 outline-none mt-1 focus:border-slate-400" value={sys1Meta.unitNum} onChange={e => setSys1Meta({...sys1Meta, unitNum: e.target.value})} disabled={sys1ActiveRecordId!==null} /></div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <div><label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">NAMA OPERATOR</label><input type="text" className="bg-white border border-slate-300 rounded-lg w-full p-2 font-bold text-slate-800 outline-none mt-1 focus:border-slate-400" value={sys1Meta.operator} onChange={e => setSys1Meta({...sys1Meta, operator: e.target.value})} disabled={sys1ActiveRecordId!==null} /></div>
-                                                <div><label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">JAM CHECK</label><input type="time" className="bg-white border border-slate-300 rounded-lg w-full p-2 font-bold text-red-600 outline-none mt-1 focus:border-slate-400" value={sys1Meta.jam} onChange={e => setSys1Meta({...sys1Meta, jam: e.target.value})} disabled={sys1ActiveRecordId!==null} /></div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <div><label className="block text-[10px] font-bold text-slate-500 tracking-wider uppercase">TANGGAL PEMERIKSAAN</label><input type="date" className="bg-white border border-slate-300 rounded-lg w-full p-2 font-bold text-red-600 outline-none mt-1 focus:border-slate-400" value={sys1Meta.tanggal} onChange={e => setSys1Meta({...sys1Meta, tanggal: e.target.value})} disabled={sys1ActiveRecordId!==null} /></div>
-                                            </div>
-                                        </div>
-
+                                        
+    {/* Kolom 1 */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-x-8 gap-y-3 text-xs font-medium mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-900">
+    <div className="space-y-2">
+        <div className="flex border-b border-slate-200 pb-1.5 items-center">
+            <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">MODEL UNIT</span><span className="mr-1">:</span>
+            {sys1ActiveRecordId !== null ? <span className="font-extrabold text-slate-900 uppercase">{sys1Meta.model}</span> : <input type="text" value={sys1Meta.model} onChange={e=>setSys1Meta({...sys1Meta, model: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
+        </div>
+        <div className="flex border-b border-slate-200 pb-1.5 items-center">
+            <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">TGL PEMERIKSAAN</span><span className="mr-1">:</span>
+            {sys1ActiveRecordId !== null ? <span className="font-bold text-slate-800">{sys1Meta.tanggal}</span> : <input type="date" value={sys1Meta.tanggal} onChange={e=>setSys1Meta({...sys1Meta, tanggal: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
+        </div>
+    </div>
+    <div className="space-y-2">
+        <div className="flex border-b border-slate-200 pb-1.5 items-center">
+            <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">UNIT NUMBER</span><span className="mr-1">:</span>
+            {sys1ActiveRecordId !== null ? <span className="font-black text-slate-900 uppercase truncate">{sys1Meta.unitNum}</span> : <input type="text" value={sys1Meta.unitNum} onChange={e=>setSys1Meta({...sys1Meta, unitNum: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
+        </div>
+        <div className="flex border-b border-slate-200 pb-1.5 items-center">
+            <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">JAM CHECK</span><span className="mr-1">:</span>
+            {sys1ActiveRecordId !== null ? <span className="font-bold text-slate-800">{sys1Meta.jam}</span> : <input type="time" value={sys1Meta.jam} onChange={e=>setSys1Meta({...sys1Meta, jam: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
+        </div>
+    </div>
+    <div className="sm:col-span-2 print:col-span-2 flex border-b border-slate-200 pb-1.5 items-center mt-1">
+        <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">NAMA OPERATOR</span><span className="mr-1">:</span>
+        {sys1ActiveRecordId !== null ? <span className="font-black text-slate-900 bg-slate-200 px-2 py-0.5 rounded">{sys1Meta.operator}</span> : <input type="text" value={sys1Meta.operator} onChange={e=>setSys1Meta({...sys1Meta, operator: e.target.value})} placeholder="Ketik nama operator..." className="flex-1 bg-transparent font-semibold text-slate-800 placeholder-slate-400 outline-none w-full" />}
+    </div>
+</div>
                                         <div className="border border-slate-200 rounded-xl overflow-hidden mb-6 shadow-xs">
                                             <div className="overflow-x-auto custom-scrollbar">
                                                 <table className="w-full text-xs text-left border-collapse bg-white min-w-[600px]">
@@ -1470,7 +1484,7 @@
                         </main>
 
                         <footer className="bg-slate-900/50 backdrop-blur-sm border-t border-slate-800 p-4 text-center text-[10px] uppercase font-bold text-slate-500 print-hidden tracking-widest relative z-10">
-                            PT Batutua Tembaga Raya — SCM Facility 
+                            PT Batutua Tembaga Raya — SCM Facility Compliance Portal
                         </footer>
                     </div>
                 );
