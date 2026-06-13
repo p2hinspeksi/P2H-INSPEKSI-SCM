@@ -15,16 +15,57 @@
             font-family: 'Inter', sans-serif;
         }
 
+        /* --- OPTIMASI PRINT CSS --- */
         @media print {
-            body { background: white !important; color: black !important; }
+            /* Membuka overflow hanya pada container utama, JANGAN gunakan * (bintang) */
+            html, body, #root, .min-h-screen, main { 
+                overflow: visible !important; 
+                height: auto !important; 
+                min-height: auto !important;
+                background: white !important;
+                color: black !important;
+            }
+            
+            /* Sembunyikan elemen yang tidak perlu di-print */
             .print-hidden { display: none !important; }
-            .print-area { width: 100% !important; max-width: 100% !important; padding: 0 !important; box-shadow: none !important; background: white !important; border: none !important; }
-            input, textarea, select { background: transparent !important; border-bottom: 1px solid #94a3b8 !important; border-top: none !important; border-left: none !important; border-right: none !important; color: black !important; box-shadow: none !important; }
-            .no-black-pdf { background-color: white !important; background: white !important; color: black !important; box-shadow: none !important; }
-            canvas { border: 1px solid #000 !important; }
+            
+            /* Matikan efek visual berat untuk meringankan beban render PDF */
+            * { box-shadow: none !important; text-shadow: none !important; }
+            
+            /* Reset area print agar full width */
+            .print-area { 
+                width: 100% !important; 
+                max-width: 100% !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                border: none !important; 
+                overflow: visible !important; 
+            }
+            
+            /* Styling form input di kertas */
+            input, textarea, select { 
+                background: transparent !important; 
+                border-bottom: 1px solid #000 !important; 
+                border-top: none !important; 
+                border-left: none !important; 
+                border-right: none !important; 
+                color: black !important; 
+                border-radius: 0 !important;
+                resize: none !important;
+            }
+            
+            .no-black-pdf { background-color: white !important; color: black !important; }
+            canvas { border: 1px solid #ccc !important; }
+            
+            /* Cegah tabel terpotong di tengah baris */
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
+            
+            /* Helper pembatas halaman */
+            .break-before-page { page-break-before: always !important; }
+            .break-inside-avoid { page-break-inside: avoid !important; }
         }
+        /* -------------------------- */
         
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -238,10 +279,8 @@
             // --- FUNGSI HELPER TANGGAL LOKAL (DIPAKSA KE WIT / UTC+9) ---
             const getLocalDateString = () => {
                 const d = new Date();
-                // Ambil timestamp universal, tambah 9 jam untuk offset WIT
                 const witTime = new Date(d.getTime() + (9 * 60 * 60 * 1000));
                 
-                // Gunakan getUTC...() agar tidak tergeser lagi oleh timezone bawaan HP/Laptop
                 const year = witTime.getUTCFullYear();
                 const month = String(witTime.getUTCMonth() + 1).padStart(2, '0');
                 const day = String(witTime.getUTCDate()).padStart(2, '0');
@@ -284,10 +323,20 @@
             const [sys2ActiveId, setSys2ActiveId] = React.useState(null);
             const [sys2ReadOnly, setSys2ReadOnly] = React.useState(false);
 
+            // Fungsi cetak PDF yang aman
+            const handlePrint = (title) => {
+                const originalTitle = document.title;
+                document.title = title;
+                // Beri waktu browser untuk membersihkan DOM sebelum render dialog print
+                setTimeout(() => {
+                    window.print();
+                    document.title = originalTitle;
+                }, 500);
+            };
+
             // --- TAMBAHKAN FUNGSI INI ---
             const handleVerifikasiClick = (targetTab) => {
-                const passwordInput = prompt("🔒 ");
-                // Ganti "admin123" dengan password yang Anda inginkan
+                const passwordInput = prompt("🔒 Masukkan Password:");
                 if (passwordInput === "scm2026") {
                     setActiveTab(targetTab);
                 } else if (passwordInput !== null) {
@@ -323,7 +372,6 @@
             React.useEffect(() => {
                 fetchCloudData();
                 
-                // Mencegah tanggal tertimpa saat membuka form verifikasi
                 setSys1Meta(prev => prev.tanggal ? prev : { 
                     ...prev, 
                     tanggal: getLocalDateString(), 
@@ -413,14 +461,7 @@
             };
 
             const saveSys1SpvApproval = () => {
-                // HAPUS ATAU COMMENT BLOCK INI AGAR TTD SPV TIDAK WAJIB
-                    // if (!sys1TtdSpv) {
-                   //      alert("⚠️ Supervisor wajib menandatangani form");
-               //      return;
-                // }
-                
                 const targetRecord = sys1Logs.find(f => f.id == sys1ActiveRecordId);
-                // Pastikan jika ttd kosong, tetap tersimpan sebagai string kosong (bukan null/error)
                 const updatedRecord = { ...targetRecord, status: 'approved', ttdSupervisor: sys1TtdSpv || '' };
 
                 fetch(`${FIREBASE_URL}/sys1_logs/${sys1ActiveRecordId}.json`, {
@@ -594,7 +635,8 @@
                 })
                 .then(() => {
                     setIsSaving(false); 
-                    alert("🎯 Terima Kasih");
+                    alert("🎯 Terima Kasih, Dokumen Berhasil Disimpan.");
+                    setActiveTab('dashboard'); // Kembali ke Dashboard otomatis
                     resetSys2Context();
                     fetchCloudData();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -660,7 +702,6 @@
                 if (!targetRecord) return;
 
                 if (targetRecord.status === 'Pending') {
-                    // ACTION 1: SPV memvalidasi berkas -> Status menjadi 'Pending HOD'
                     if (!sys2Sigs.sigSpv || !sys2Sigs.nameSpv.trim()) {
                         alert("⚠️ Supervisor SCM wajib mengisi nama dan menandatangani berkas sebelum persetujuan!");
                         return;
@@ -675,8 +716,8 @@
                         method: 'PUT',
                         body: JSON.stringify(updatedRecord)
                     }).then(() => {
-                        alert("🎯 Terima kasih");
-                        setActiveTab('dashboard');
+                        alert("🎯 Terima kasih, Dokumen Divalidasi. Menunggu persetujuan HOD.");
+                        setActiveTab('verifikasi');
                         setSys2ActiveId(null);
                         setSys2ReadOnly(false);
                         resetSys2Context();
@@ -684,7 +725,6 @@
                     }).catch(e => console.error(e));
 
                 } else if (targetRecord.status === 'Pending HOD') {
-                    // ACTION 2: HOD memvalidasi berkas -> Status menjadi 'Approved' lalu Dokumen Dicetak
                     if (!sys2Sigs.sigHead || !sys2Sigs.nameHead.trim()) {
                         alert("⚠️ SCM Department Head wajib mengisi nama dan menandatangani berkas sebelum persetujuan akhir!");
                         return;
@@ -699,28 +739,16 @@
                         method: 'PUT',
                         body: JSON.stringify(updatedRecord)
                     }).then(() => {
-                        alert("🎯 Terima kasih");
-                        setTimeout(() => {
-                            // UBAH NAMA FILE PDF SEMENTARA SEBELUM PRINT
-                            const originalTitle = document.title;
-                            document.title = `Weekly_${sys2Meta.tanggal}_${sys2Area}`;
-                            window.print();
-                            document.title = originalTitle; // Kembalikan ke judul asli
-
-                            setActiveTab('dashboard');
-                            setSys2ActiveId(null);
-                            setSys2ReadOnly(false);
-                            resetSys2Context();
-                            fetchCloudData();
-                        }, 400);
+                        alert("🎯 Dokumen berhasil disetujui (Approved). Cetak PDF dapat dilakukan oleh Admin.");
+                        setActiveTab('verifikasi');
+                        setSys2ActiveId(null);
+                        setSys2ReadOnly(false);
+                        resetSys2Context();
+                        fetchCloudData();
                     }).catch(e => console.error(e));
 
                 } else if (targetRecord.status === 'Approved') {
-                    // ACTION 3: Jika sudah Approved, cukup tampilkan layar print
-                    const originalTitle = document.title;
-                    document.title = `Weekly_${sys2Meta.tanggal}_${sys2Area}`;
-                    window.print();
-                    document.title = originalTitle;
+                    handlePrint(`Weekly_${sys2Meta.tanggal}_${sys2Area}`);
                 }
             };
 
@@ -728,89 +756,59 @@
                 return (
                     <div className="min-h-screen bg-slate-950 relative flex flex-col items-center justify-center p-4 md:p-8 text-white print-hidden overflow-hidden">
                         
-                        {/* Efek Cahaya Latar Belakang (Glow Blob) */}
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-600/10 blur-[120px] rounded-full pointer-events-none"></div>
                         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-orange-600/5 blur-[100px] rounded-full pointer-events-none"></div>
 
                         <div className="text-center max-w-3xl mb-12 md:mb-16 relative z-10">
-                            {/* Top Badge */}
                             <div className="inline-flex items-center gap-2 bg-slate-900/80 border border-slate-700/50 text-slate-300 text-[10px] md:text-xs font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full mb-8 shadow-xl backdrop-blur-sm">
                                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                                 PT Batutua Tembaga Raya — Supply Chain Management
                             </div>
                             
-                            {/* Main Heading */}
                             <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tighter uppercase leading-tight text-slate-100">
                                 SCM WETAR <br/>
                                 <span className="bg-gradient-to-r from-red-500 via-orange-400 to-red-500 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(239,68,68,0.2)]">
                                     Inspeksi Area & P2H
                                 </span>
                             </h1>
-                            
-                            {/* Subtitle */}
-                            <p className="text-slate-400 text-sm md:text-base mt-6 max-w-xl mx-auto font-light leading-relaxed">
-                                
-                            </p>
                         </div>
 
-                        {/* Menu Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl px-2 relative z-10">
-                            
-                            {/* CARD 1: P2H */}
                             <div onClick={() => { setSystemMode('sys1'); setActiveTab('dashboard'); }} 
                                  className="group relative bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 cursor-pointer overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(239,68,68,0.2)] hover:border-red-500/30">
-                                {/* Decorative Card Top Line */}
                                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                {/* Decorative Card Glow */}
                                 <div className="absolute -inset-24 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl pointer-events-none"></div>
-                                
-                                {/* Icon */}
                                 <div className="relative w-16 h-16 mb-6 rounded-2xl bg-slate-800/80 border border-slate-700/50 flex items-center justify-center text-3xl shadow-inner group-hover:bg-red-500/10 group-hover:border-red-500/30 transition-all duration-300 z-10">
                                     🚜
                                 </div>
-                                
-                                {/* Text Content */}
                                 <h2 className="text-2xl font-bold text-slate-100 group-hover:text-white transition-colors relative z-10 tracking-tight">P2H UNIT SCM</h2>
                                 <p className="text-slate-400 text-sm mt-3 font-light leading-relaxed relative z-10 group-hover:text-slate-300 transition-colors">
                                     Pemeriksaan Harian (Pre-Start Check) SCM: Crane, Reach Stacker, Forklift, Prime Mover, dll.
                                 </p>
-                                
-                                {/* Link Action */}
                                 <div className="mt-8 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 group-hover:text-red-400 transition-colors relative z-10">
                                     <span>Masuk Modul</span> 
                                     <span className="transform group-hover:translate-x-2 transition-transform duration-300">→</span>
                                 </div>
                             </div>
 
-                            {/* CARD 2: WEEKLY */}
                             <div onClick={() => { setSystemMode('sys2'); setActiveTab('dashboard'); }} 
                                  className="group relative bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 cursor-pointer overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(249,115,22,0.2)] hover:border-orange-500/30">
-                                {/* Decorative Card Top Line */}
                                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                {/* Decorative Card Glow */}
                                 <div className="absolute -inset-24 bg-gradient-to-br from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl pointer-events-none"></div>
-                                
-                                {/* Icon */}
                                 <div className="relative w-16 h-16 mb-6 rounded-2xl bg-slate-800/80 border border-slate-700/50 flex items-center justify-center text-3xl shadow-inner group-hover:bg-orange-500/10 group-hover:border-orange-500/30 transition-all duration-300 z-10">
                                     📋
                                 </div>
-                                
-                                {/* Text Content */}
                                 <h2 className="text-2xl font-bold text-slate-100 group-hover:text-white transition-colors relative z-10 tracking-tight">Weekly Inspection</h2>
                                 <p className="text-slate-400 text-sm mt-3 font-light leading-relaxed relative z-10 group-hover:text-slate-300 transition-colors">
                                     
                                 </p>
-                                
-                                {/* Link Action */}
                                 <div className="mt-8 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 group-hover:text-orange-400 transition-colors relative z-10">
                                     <span>Masuk Modul</span> 
                                     <span className="transform group-hover:translate-x-2 transition-transform duration-300">→</span>
                                 </div>
                             </div>
-
                         </div>
 
-                        {/* Footer */}
                         <footer className="mt-20 relative z-10 text-slate-600 text-[10px] sm:text-xs font-mono text-center tracking-widest px-4 border-t border-slate-800/50 pt-6 w-full max-w-4xl mx-auto">
                             PT BATUTUA TEMBAGA RAYA • SUPPLY CHAIN MANAGEMENT-WETAR © 2026
                         </footer>
@@ -822,7 +820,6 @@
                 return (
                     <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-slate-200 flex flex-col justify-between no-black-pdf relative overflow-hidden">
                         
-                        {/* Background Glow Sub-Menu */}
                         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-red-600/10 blur-[120px] rounded-full pointer-events-none print-hidden"></div>
 
                         <header className="bg-slate-900/80 backdrop-blur-md text-white p-4 flex flex-col lg:flex-row gap-4 items-center justify-between print-hidden shadow-lg sticky top-0 z-50 w-full border-b border-slate-700/50">
@@ -842,7 +839,7 @@
                             </nav>
                         </header>
 
-                        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto print-area no-black-pdf relative z-10">
+                        <main className="flex-1 p-2 sm:p-4 md:p-8 max-w-7xl w-full mx-auto print-area no-black-pdf relative z-10">
                             {activeTab === 'dashboard' && (
                                 <div className="space-y-6 py-2 animate-fade-in">
                                     <div className="bg-white text-slate-900 border border-slate-200 rounded-2xl p-4 md:p-8 shadow-xl">
@@ -948,33 +945,34 @@
                                         </div>
 
                                         
-    {/* Kolom 1 */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-x-8 gap-y-3 text-xs font-medium mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-900">
-    <div className="space-y-2">
-        <div className="flex border-b border-slate-200 pb-1.5 items-center">
-            <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">MODEL UNIT</span><span className="mr-1">:</span>
-            {sys1ActiveRecordId !== null ? <span className="font-extrabold text-slate-900 uppercase">{sys1Meta.model}</span> : <input type="text" value={sys1Meta.model} onChange={e=>setSys1Meta({...sys1Meta, model: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
-        </div>
-        <div className="flex border-b border-slate-200 pb-1.5 items-center">
-            <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">TGL PEMERIKSAAN</span><span className="mr-1">:</span>
-            {sys1ActiveRecordId !== null ? <span className="font-bold text-slate-800">{sys1Meta.tanggal}</span> : <input type="date" value={sys1Meta.tanggal} onChange={e=>setSys1Meta({...sys1Meta, tanggal: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
-        </div>
-    </div>
-    <div className="space-y-2">
-        <div className="flex border-b border-slate-200 pb-1.5 items-center">
-            <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">UNIT NUMBER</span><span className="mr-1">:</span>
-            {sys1ActiveRecordId !== null ? <span className="font-black text-slate-900 uppercase truncate">{sys1Meta.unitNum}</span> : <input type="text" value={sys1Meta.unitNum} onChange={e=>setSys1Meta({...sys1Meta, unitNum: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
-        </div>
-        <div className="flex border-b border-slate-200 pb-1.5 items-center">
-            <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">JAM CHECK</span><span className="mr-1">:</span>
-            {sys1ActiveRecordId !== null ? <span className="font-bold text-slate-800">{sys1Meta.jam}</span> : <input type="time" value={sys1Meta.jam} onChange={e=>setSys1Meta({...sys1Meta, jam: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
-        </div>
-    </div>
-    <div className="sm:col-span-2 print:col-span-2 flex border-b border-slate-200 pb-1.5 items-center mt-1">
-        <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">NAMA OPERATOR</span><span className="mr-1">:</span>
-        {sys1ActiveRecordId !== null ? <span className="font-black text-slate-900 bg-slate-200 px-2 py-0.5 rounded">{sys1Meta.operator}</span> : <input type="text" value={sys1Meta.operator} onChange={e=>setSys1Meta({...sys1Meta, operator: e.target.value})} placeholder="Ketik nama operator..." className="flex-1 bg-transparent font-semibold text-slate-800 placeholder-slate-400 outline-none w-full" />}
-    </div>
-</div>
+                                        {/* Kolom 1 */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-x-8 gap-y-3 text-xs font-medium mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-900">
+                                        <div className="space-y-2">
+                                            <div className="flex border-b border-slate-200 pb-1.5 items-center">
+                                                <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">MODEL UNIT</span><span className="mr-1">:</span>
+                                                {sys1ActiveRecordId !== null ? <span className="font-extrabold text-slate-900 uppercase">{sys1Meta.model}</span> : <input type="text" value={sys1Meta.model} onChange={e=>setSys1Meta({...sys1Meta, model: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
+                                            </div>
+                                            <div className="flex border-b border-slate-200 pb-1.5 items-center">
+                                                <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">TGL PEMERIKSAAN</span><span className="mr-1">:</span>
+                                                {sys1ActiveRecordId !== null ? <span className="font-bold text-slate-800">{sys1Meta.tanggal}</span> : <input type="date" value={sys1Meta.tanggal} onChange={e=>setSys1Meta({...sys1Meta, tanggal: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="flex border-b border-slate-200 pb-1.5 items-center">
+                                                <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">UNIT NUMBER</span><span className="mr-1">:</span>
+                                                {sys1ActiveRecordId !== null ? <span className="font-black text-slate-900 uppercase truncate">{sys1Meta.unitNum}</span> : <input type="text" value={sys1Meta.unitNum} onChange={e=>setSys1Meta({...sys1Meta, unitNum: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
+                                            </div>
+                                            <div className="flex border-b border-slate-200 pb-1.5 items-center">
+                                                <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">JAM CHECK</span><span className="mr-1">:</span>
+                                                {sys1ActiveRecordId !== null ? <span className="font-bold text-slate-800">{sys1Meta.jam}</span> : <input type="time" value={sys1Meta.jam} onChange={e=>setSys1Meta({...sys1Meta, jam: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
+                                            </div>
+                                        </div>
+                                        <div className="sm:col-span-2 print:col-span-2 flex border-b border-slate-200 pb-1.5 items-center mt-1">
+                                            <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">NAMA OPERATOR</span><span className="mr-1">:</span>
+                                            {sys1ActiveRecordId !== null ? <span className="font-black text-slate-900 bg-slate-200 px-2 py-0.5 rounded">{sys1Meta.operator}</span> : <input type="text" value={sys1Meta.operator} onChange={e=>setSys1Meta({...sys1Meta, operator: e.target.value})} placeholder="Ketik nama operator..." className="flex-1 bg-transparent font-semibold text-slate-800 placeholder-slate-400 outline-none w-full" />}
+                                        </div>
+                                        </div>
+                                        
                                         <div className="border border-slate-200 rounded-xl overflow-hidden mb-6 shadow-xs">
                                             <div className="overflow-x-auto custom-scrollbar">
                                                 <table className="w-full text-xs text-left border-collapse bg-white min-w-[600px]">
@@ -987,61 +985,64 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody className="text-slate-900 divide-y divide-slate-200">
-    {unitDataScript1[sys1Unit].items.map((section, sIdx) => (
-        <React.Fragment key={sIdx}>
-            <tr className="bg-slate-100">
-                <td colSpan="4" className="p-3 font-extrabold text-slate-800 uppercase tracking-wider border-y border-slate-200 text-[11px] font-mono">{section.section}</td>
-            </tr>
-            {section.tasks.map((task, tIdx) => {
-                const key = `${sIdx}-${tIdx}`;
-                const isBaik = sys1Checklist[key] === 'baik';
-                const isRusak = sys1Checklist[key] === 'rusak';
-                return (
-                    <tr key={tIdx} className="bg-white hover:bg-slate-50 transition-colors">
-                        <td className="p-3 font-medium text-slate-700 leading-relaxed border border-slate-300">{task}</td>
-                        <td className="p-3 text-center border border-slate-300">
-                            <input type="checkbox" checked={isBaik} disabled={sys1ActiveRecordId!==null} onChange={() => handleSys1Check(key, 'baik')} className="w-5 h-5 rounded accent-emerald-500 cursor-pointer disabled:opacity-100" />
-                        </td>
-                        <td className="p-3 text-center border border-slate-300">
-                            <input type="checkbox" checked={isRusak} disabled={sys1ActiveRecordId!==null} onChange={() => handleSys1Check(key, 'rusak')} className="w-5 h-5 rounded accent-red-500 cursor-pointer disabled:opacity-100" />
-                        </td>
-                        <td className="p-2 border border-slate-300">
-                            <textarea rows="1" disabled={sys1ActiveRecordId!==null} className="w-full bg-transparent border-b border-slate-200 p-1 text-xs outline-none resize-none text-slate-800 focus:border-slate-400" placeholder="" value={sys1Checklist[`${key}_ket`] || ''} onChange={(e) => setSys1Checklist(prev => ({ ...prev, [`${key}_ket`]: e.target.value }))}></textarea>
-                        </td>
-                    </tr>
-                );
-            })}
-        </React.Fragment>
-                                                    ))}
+                                                        {unitDataScript1[sys1Unit].items.map((section, sIdx) => (
+                                                            <React.Fragment key={sIdx}>
+                                                                <tr className="bg-slate-100">
+                                                                    <td colSpan="4" className="p-3 font-extrabold text-slate-800 uppercase tracking-wider border-y border-slate-200 text-[11px] font-mono">{section.section}</td>
+                                                                </tr>
+                                                                {section.tasks.map((task, tIdx) => {
+                                                                    const key = `${sIdx}-${tIdx}`;
+                                                                    const isBaik = sys1Checklist[key] === 'baik';
+                                                                    const isRusak = sys1Checklist[key] === 'rusak';
+                                                                    return (
+                                                                        <tr key={tIdx} className="bg-white hover:bg-slate-50 transition-colors">
+                                                                            <td className="p-3 font-medium text-slate-700 leading-relaxed border border-slate-300">{task}</td>
+                                                                            <td className="p-3 text-center border border-slate-300">
+                                                                                <input type="checkbox" checked={isBaik} disabled={sys1ActiveRecordId!==null} onChange={() => handleSys1Check(key, 'baik')} className="w-5 h-5 rounded accent-emerald-500 cursor-pointer disabled:opacity-100" />
+                                                                            </td>
+                                                                            <td className="p-3 text-center border border-slate-300">
+                                                                                <input type="checkbox" checked={isRusak} disabled={sys1ActiveRecordId!==null} onChange={() => handleSys1Check(key, 'rusak')} className="w-5 h-5 rounded accent-red-500 cursor-pointer disabled:opacity-100" />
+                                                                            </td>
+                                                                            <td className="p-2 border border-slate-300">
+                                                                                <textarea rows="1" disabled={sys1ActiveRecordId!==null} className="w-full bg-transparent border-b border-slate-200 p-1 text-xs outline-none resize-none text-slate-800 focus:border-slate-400" placeholder="" value={sys1Checklist[`${key}_ket`] || ''} onChange={(e) => setSys1Checklist(prev => ({ ...prev, [`${key}_ket`]: e.target.value }))}></textarea>
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })}
+                                                            </React.Fragment>
+                                                        ))}
                                                     </tbody>
                                                 </table>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-2 border-slate-100 rounded-xl p-4 md:p-6 bg-slate-50/50 text-center no-black-pdf">
-                                            <div className="flex flex-col items-center justify-between gap-3 min-h-[150px]">
-                                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pemeriksa (Operator)</span>
-                                                <SignaturePad 
-                                                    savedImage={sys1TtdOp} 
-                                                    onSave={(img) => setSys1TtdOp(img)} 
-                                                    readOnly={sys1ActiveRecordId !== null} 
-                                                    placeholder="Tanda Tangan Operator"
-                                                />
-                                                <span className="text-xs font-bold text-slate-800 border-t border-slate-200 pt-2 w-full max-w-[180px] truncate">{sys1Meta.operator || '---'}</span>
-                                            </div>
-                                            <div className="flex flex-col items-center justify-between gap-3 min-h-[150px] pt-4 sm:pt-0 border-t sm:border-t-0 sm:border-l border-slate-200">
-                                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mengetahui(Supervisor)</span>
-                                                {sys1ActiveRecordId ? (
+                                        {/* Tanda Tangan P2H dengan pembungkus Page Break */}
+                                        <div className="print:block print:w-full break-before-page print:mt-10">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-2 border-slate-100 rounded-xl p-4 md:p-6 bg-slate-50/50 text-center no-black-pdf break-inside-avoid">
+                                                <div className="flex flex-col items-center justify-between gap-3 min-h-[150px]">
+                                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pemeriksa (Operator)</span>
                                                     <SignaturePad 
-                                                        savedImage={sys1TtdSpv} 
-                                                        onSave={(img) => setSys1TtdSpv(img)} 
-                                                        readOnly={sys1Logs.find(x => x.id === sys1ActiveRecordId)?.status === 'approved'} 
-                                                        placeholder="Tanda Tangan SPV"
+                                                        savedImage={sys1TtdOp} 
+                                                        onSave={(img) => setSys1TtdOp(img)} 
+                                                        readOnly={sys1ActiveRecordId !== null} 
+                                                        placeholder="Tanda Tangan Operator"
                                                     />
-                                                ) : (
-                                                    <div className="text-xs font-semibold text-amber-600 bg-amber-50 p-3 border border-amber-200 rounded-xl max-w-[180px] my-auto italic flex items-center gap-1">🔒</div>
-                                                )}
-                                                <span className="text-xs font-bold text-slate-800 border-t border-slate-200 pt-2 w-full max-w-[180px]">Supervisor SCM</span>
+                                                    <span className="text-xs font-bold text-slate-800 border-t border-slate-200 pt-2 w-full max-w-[180px] truncate">{sys1Meta.operator || '---'}</span>
+                                                </div>
+                                                <div className="flex flex-col items-center justify-between gap-3 min-h-[150px] pt-4 sm:pt-0 border-t sm:border-t-0 sm:border-l border-slate-200">
+                                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mengetahui(Supervisor)</span>
+                                                    {sys1ActiveRecordId ? (
+                                                        <SignaturePad 
+                                                            savedImage={sys1TtdSpv} 
+                                                            onSave={(img) => setSys1TtdSpv(img)} 
+                                                            readOnly={sys1Logs.find(x => x.id === sys1ActiveRecordId)?.status === 'approved'} 
+                                                            placeholder="Tanda Tangan SPV"
+                                                        />
+                                                    ) : (
+                                                        <div className="text-xs font-semibold text-amber-600 bg-amber-50 p-3 border border-amber-200 rounded-xl max-w-[180px] my-auto italic flex items-center gap-1">🔒</div>
+                                                    )}
+                                                    <span className="text-xs font-bold text-slate-800 border-t border-slate-200 pt-2 w-full max-w-[180px]">Supervisor SCM</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1053,21 +1054,16 @@
                                             </button>
                                         ) : (
                                             sys1Logs.find(x => x.id === sys1ActiveRecordId)?.status === 'approved' ? (
-                                                <button type="button" onClick={() => {
-                                                    const originalTitle = document.title;
-                                                    document.title = `P2H_${sys1Meta.tanggal}_${sys1Meta.unitNum}`;
-                                                    window.print();
-                                                    document.title = originalTitle;
-                                                }} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider py-3 px-6 rounded-xl shadow-md transition-all active:scale-95 w-full sm:w-auto">🖨️ CETAK / DOWNLOAD PDF</button>
+                                                <button type="button" onClick={() => handlePrint(`P2H_${sys1Meta.tanggal}_${sys1Meta.unitNum}`)} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider py-3 px-6 rounded-xl shadow-md transition-all active:scale-95 w-full sm:w-auto">🖨️ CETAK / DOWNLOAD PDF</button>
                                             ) : (
                                                 <button type="button" onClick={saveSys1SpvApproval} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider py-3 px-6 rounded-xl shadow-md transition-all active:scale-95 w-full sm:w-auto">✔️ VALIDASI & SIMPAN</button>
                                             )
                                         )}
                                         <button type="button" onClick={() => { 
-    const nextTab = sys1ActiveRecordId ? 'antrean' : 'dashboard';
-    resetSys1Form(); 
-    setActiveTab(nextTab); 
-}} className="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white text-xs font-bold uppercase tracking-wider py-3 px-6 rounded-xl shadow-xs transition-all w-full sm:w-auto">KEMBALI</button>
+                                            const nextTab = sys1ActiveRecordId ? 'antrean' : 'dashboard';
+                                            resetSys1Form(); 
+                                            setActiveTab(nextTab); 
+                                        }} className="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white text-xs font-bold uppercase tracking-wider py-3 px-6 rounded-xl shadow-xs transition-all w-full sm:w-auto">KEMBALI</button>
                                     </div>
                                 </div>
                             )}
@@ -1133,11 +1129,10 @@
                 return (
                     <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-slate-200 flex flex-col justify-between no-black-pdf relative overflow-hidden">
                         
-                        {/* Background Glow Sub-Menu */}
                         <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-orange-600/10 blur-[120px] rounded-full pointer-events-none print-hidden"></div>
 
-                        <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-700/50 p-4 flex flex-col lg:flex-row gap-4 items-center justify-between print-hidden shadow-sm sticky top-0 z-50">
-                            <div className="flex items-center gap-4 w-full lg:w-auto">
+                        <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-700/50 p-4 flex gap-4 items-center justify-between print-hidden shadow-sm sticky top-0 z-50">
+                            <div className="flex items-center gap-4 w-full">
                                 <button onClick={() => setSystemMode('core-dashboard')} className="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold py-2 px-4 rounded-xl text-xs transition duration-200 shrink-0 shadow-md flex items-center gap-1">
                                     <span>⬅</span> <span className="hidden sm:inline">Portal</span>
                                 </button>
@@ -1146,17 +1141,11 @@
                                         <span>WEEKLY INSPECTION</span>
                                         <span className="bg-orange-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">BTR</span>
                                     </h1>
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wide mt-0.5 font-medium"></p>
                                 </div>
                             </div>
-                            <nav className="flex gap-2 w-full lg:w-auto justify-end overflow-x-auto py-1 custom-scrollbar">
-                                <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-2 rounded-xl text-xs font-bold transition duration-200 shrink-0 border ${activeTab==='dashboard' ? 'bg-orange-600 border-orange-500 text-white shadow-md':'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700'}`}>Dashboard</button>
-                                <button onClick={() => { resetSys2Context(); setActiveTab('form'); }} className={`px-4 py-2 rounded-xl text-xs font-bold transition duration-200 shrink-0 border ${activeTab==='form' ? 'bg-orange-600 border-orange-500 text-white shadow-md':'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700'}`}>📋 Input Checklist</button>
-                                <button onClick={() => handleVerifikasiClick('verifikasi')} className={`px-4 py-2 rounded-xl text-xs font-bold transition duration-200 shrink-0 border ${activeTab==='verifikasi' ? 'bg-orange-600 border-orange-500 text-white shadow-md':'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700'}`}>🛡️ Validasi SPV/HOD </button>
-                            </nav>
                         </header>
 
-                        <main className="flex-1 p-4 md:p-8 max-w-5xl w-full mx-auto print-area no-black-pdf relative z-10">
+                        <main className="flex-1 p-2 sm:p-4 md:p-8 max-w-5xl w-full mx-auto print-area no-black-pdf relative z-10">
                             {activeTab === 'dashboard' && (
                                 <div className="space-y-6 py-2 animate-fade-in">
                                     <div className="text-center mb-8">
@@ -1167,7 +1156,7 @@
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto print-hidden">
                                         <div onClick={() => { resetSys2Context(); setActiveTab('form'); }} className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 p-6 rounded-2xl cursor-pointer hover:border-orange-500 hover:shadow-[0_10px_25px_-5px_rgba(249,115,22,0.2)] transition-all group duration-300">
                                             <div className="w-12 h-12 bg-slate-900/50 text-orange-500 rounded-xl flex items-center justify-center text-2xl font-bold mb-4 group-hover:bg-orange-500/20 group-hover:scale-110 transition-all">📋</div>
-                                            <h3 className="font-bold text-base text-slate-100">Form Checklist Mingguan</h3>
+                                            <h3 className="font-bold text-base text-slate-100">Form Inspeksi Mingguan</h3>
                                             <p className="text-xs text-slate-400 mt-1 font-light leading-relaxed"></p>
                                         </div>
 
@@ -1187,7 +1176,6 @@
                                             <div className="flex items-center gap-3 w-full sm:w-auto">
                                                 <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600 text-lg font-bold">📍</div>
                                                 <div>
-                                                    <label className="text-[10px] font-black uppercase text-slate-500 block tracking-wider"></label>
                                                     <span className="text-xs font-bold text-slate-700 hidden sm:inline">Pilih Area :</span>
                                                 </div>
                                             </div>
@@ -1208,7 +1196,6 @@
                                             <div className="sm:col-span-6 p-4 bg-red-800 text-white font-black flex flex-col items-center justify-center border-b-2 sm:border-b-0 sm:border-r-2 border-slate-900">
                                                 <div className="text-[9px] bg-slate-950 text-white px-2 py-0.5 rounded-full font-mono font-bold tracking-widest mb-1 shadow-inner">SCM DEPT</div>
                                                 <div className="text-sm md:text-base uppercase tracking-wider font-extrabold border-b border-white/20 pb-0.5">WEEKLY INSPECTION REPORT</div>
-                                                <p className="text-[8px] font-mono tracking-widest text-red-100 uppercase mt-1"></p>
                                             </div>
                                             <div className="sm:col-span-3 p-3 text-left flex flex-row sm:flex-col justify-center gap-2 sm:gap-1 font-mono text-[9px] font-bold bg-slate-50 text-slate-700">
                                                 <div>No Dok: <span className="text-black-600 font-extrabold block sm:inline">{weeklyDocNumbers[sys2Area] || 'BTR-SCM-001'}</span></div>
@@ -1357,79 +1344,81 @@
                                             </div>
                                         </div>
 
-                                        {/* BAGIAN TANDA TANGAN */}
-                                        <div className="border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 text-center bg-slate-50/50 no-black-pdf gap-y-4 sm:gap-y-0 p-1.5">
-                                            
-                                            {/* TANDA TANGAN INSPEKTOR */}
-                                            <div className="p-3 flex flex-col justify-between items-center min-h-[160px] no-black-pdf">
-                                                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">DIINSPEKSI OLEH</span>
-                                                <SignaturePad 
-                                                    savedImage={sys2Sigs.sigInspector} 
-                                                    onSave={(img) => setSys2Sigs({...sys2Sigs, sigInspector: img})} 
-                                                    readOnly={sys2ReadOnly} 
-                                                    placeholder="Inspektor SCM" 
-                                                />
-                                                <div className="w-full">
-                                                    {sys2ReadOnly ? (
-                                                        <div className="font-bold text-xs text-slate-800">{sys2Sigs.nameInspector}</div>
-                                                    ) : (
-                                                        <input type="text" value={sys2Sigs.nameInspector} onChange={e=>setSys2Sigs({...sys2Sigs, nameInspector: e.target.value})} placeholder="Ketik Nama Inspektor" className="w-full text-center font-bold text-slate-900 text-xs border-b border-slate-300 bg-white p-1 rounded-md outline-none focus:border-slate-500" />
-                                                    )}
-                                                    <div className="text-[9px] text-slate-500 font-medium uppercase mt-0.5">SCM Inspector</div>
-                                                </div>
-                                            </div>
-
-                                            {/* TANDA TANGAN SPV */}
-                                            <div className="p-3 flex flex-col justify-between items-center min-h-[160px] no-black-pdf">
-                                                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">MENGETAHUI</span>
-                                                {sys2ActiveId ? (
+                                        {/* TANDA TANGAN DENGAN PAGE BREAK */}
+                                        <div className="print:block print:w-full break-before-page print:mt-10">
+                                            <div className="border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 text-center bg-slate-50/50 no-black-pdf gap-y-4 sm:gap-y-0 p-1.5 break-inside-avoid">
+                                                
+                                                {/* TANDA TANGAN INSPEKTOR */}
+                                                <div className="p-3 flex flex-col justify-between items-center min-h-[160px] no-black-pdf">
+                                                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">DIINSPEKSI OLEH</span>
                                                     <SignaturePad 
-                                                        savedImage={sys2Sigs.sigSpv} 
-                                                        onSave={(img) => setSys2Sigs({...sys2Sigs, sigSpv: img})} 
-                                                        readOnly={['Pending HOD', 'Approved'].includes(sys2Records.find(x => x.id === sys2ActiveId)?.status)} 
-                                                        placeholder="Supervisor SCM"
+                                                        savedImage={sys2Sigs.sigInspector} 
+                                                        onSave={(img) => setSys2Sigs({...sys2Sigs, sigInspector: img})} 
+                                                        readOnly={sys2ReadOnly} 
+                                                        placeholder="Inspektor SCM" 
                                                     />
-                                                ) : (
-                                                    <div className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-3 py-2 border border-amber-200 rounded-xl my-auto italic">🔒 </div>
-                                                )}
-                                                <div className="w-full px-1">
+                                                    <div className="w-full">
+                                                        {sys2ReadOnly ? (
+                                                            <div className="font-bold text-xs text-slate-800">{sys2Sigs.nameInspector}</div>
+                                                        ) : (
+                                                            <input type="text" value={sys2Sigs.nameInspector} onChange={e=>setSys2Sigs({...sys2Sigs, nameInspector: e.target.value})} placeholder="Ketik Nama Inspektor" className="w-full text-center font-bold text-slate-900 text-xs border-b border-slate-300 bg-white p-1 rounded-md outline-none focus:border-slate-500" />
+                                                        )}
+                                                        <div className="text-[9px] text-slate-500 font-medium uppercase mt-0.5">SCM Inspector</div>
+                                                    </div>
+                                                </div>
+
+                                                {/* TANDA TANGAN SPV */}
+                                                <div className="p-3 flex flex-col justify-between items-center min-h-[160px] no-black-pdf">
+                                                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">MENGETAHUI</span>
                                                     {sys2ActiveId ? (
-                                                        ['Pending HOD', 'Approved'].includes(sys2Records.find(x => x.id === sys2ActiveId)?.status) ? (
-                                                            <div className="font-bold text-xs text-slate-800">{sys2Sigs.nameSpv || '---'}</div>
-                                                        ) : (
-                                                            <input type="text" value={sys2Sigs.nameSpv} onChange={e=>setSys2Sigs({...sys2Sigs, nameSpv: e.target.value})} placeholder="Ketik Nama SPV" className="w-full text-center font-bold text-slate-900 text-xs border-b border-slate-300 bg-white p-1 rounded-md outline-none focus:border-slate-500" />
-                                                        )
+                                                        <SignaturePad 
+                                                            savedImage={sys2Sigs.sigSpv} 
+                                                            onSave={(img) => setSys2Sigs({...sys2Sigs, sigSpv: img})} 
+                                                            readOnly={['Pending HOD', 'Approved'].includes(sys2Records.find(x => x.id === sys2ActiveId)?.status)} 
+                                                            placeholder="Supervisor SCM"
+                                                        />
                                                     ) : (
-                                                        <div className="font-bold text-xs text-slate-400">---</div>
+                                                        <div className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-3 py-2 border border-amber-200 rounded-xl my-auto italic">🔒 </div>
                                                     )}
-                                                    <div className="text-[9px] text-slate-500 font-medium uppercase mt-0.5">SCM Supervisor</div>
+                                                    <div className="w-full px-1">
+                                                        {sys2ActiveId ? (
+                                                            ['Pending HOD', 'Approved'].includes(sys2Records.find(x => x.id === sys2ActiveId)?.status) ? (
+                                                                <div className="font-bold text-xs text-slate-800">{sys2Sigs.nameSpv || '---'}</div>
+                                                            ) : (
+                                                                <input type="text" value={sys2Sigs.nameSpv} onChange={e=>setSys2Sigs({...sys2Sigs, nameSpv: e.target.value})} placeholder="Ketik Nama SPV" className="w-full text-center font-bold text-slate-900 text-xs border-b border-slate-300 bg-white p-1 rounded-md outline-none focus:border-slate-500" />
+                                                            )
+                                                        ) : (
+                                                            <div className="font-bold text-xs text-slate-400">---</div>
+                                                        )}
+                                                        <div className="text-[9px] text-slate-500 font-medium uppercase mt-0.5">SCM Supervisor</div>
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            {/* TANDA TANGAN HOD */}
-                                            <div className="p-3 flex flex-col justify-between items-center min-h-[160px] no-black-pdf">
-                                                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">DISETUJUI</span>
-                                                {sys2ActiveId && sys2Records.find(x => x.id === sys2ActiveId)?.status !== 'Pending' ? (
-                                                    <SignaturePad 
-                                                        savedImage={sys2Sigs.sigHead} 
-                                                        onSave={(img) => setSys2Sigs({...sys2Sigs, sigHead: img})} 
-                                                        readOnly={sys2Records.find(x => x.id === sys2ActiveId)?.status === 'Approved'} 
-                                                        placeholder="Department Head"
-                                                    />
-                                                ) : (
-                                                    <div className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-3 py-2 border border-amber-200 rounded-xl my-auto italic">🔒 </div>
-                                                )}
-                                                <div className="w-full px-1">
+                                                {/* TANDA TANGAN HOD */}
+                                                <div className="p-3 flex flex-col justify-between items-center min-h-[160px] no-black-pdf">
+                                                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">DISETUJUI</span>
                                                     {sys2ActiveId && sys2Records.find(x => x.id === sys2ActiveId)?.status !== 'Pending' ? (
-                                                        sys2Records.find(x => x.id === sys2ActiveId)?.status === 'Approved' ? (
-                                                            <div className="font-bold text-xs text-slate-800">{sys2Sigs.nameHead || '---'}</div>
-                                                        ) : (
-                                                            <input type="text" value={sys2Sigs.nameHead} onChange={e=>setSys2Sigs({...sys2Sigs, nameHead: e.target.value})} placeholder="Ketik Nama Head" className="w-full text-center font-bold text-slate-900 text-xs border-b border-slate-300 bg-white p-1 rounded-md outline-none focus:border-slate-500" />
-                                                        )
+                                                        <SignaturePad 
+                                                            savedImage={sys2Sigs.sigHead} 
+                                                            onSave={(img) => setSys2Sigs({...sys2Sigs, sigHead: img})} 
+                                                            readOnly={sys2Records.find(x => x.id === sys2ActiveId)?.status === 'Approved'} 
+                                                            placeholder="Department Head"
+                                                        />
                                                     ) : (
-                                                        <div className="font-bold text-xs text-slate-400">---</div>
+                                                        <div className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-3 py-2 border border-amber-200 rounded-xl my-auto italic">🔒 </div>
                                                     )}
-                                                    <div className="text-[9px] text-slate-500 font-medium uppercase mt-0.5">SCM Department Head</div>
+                                                    <div className="w-full px-1">
+                                                        {sys2ActiveId && sys2Records.find(x => x.id === sys2ActiveId)?.status !== 'Pending' ? (
+                                                            sys2Records.find(x => x.id === sys2ActiveId)?.status === 'Approved' ? (
+                                                                <div className="font-bold text-xs text-slate-800">{sys2Sigs.nameHead || '---'}</div>
+                                                            ) : (
+                                                                <input type="text" value={sys2Sigs.nameHead} onChange={e=>setSys2Sigs({...sys2Sigs, nameHead: e.target.value})} placeholder="Ketik Nama Head" className="w-full text-center font-bold text-slate-900 text-xs border-b border-slate-300 bg-white p-1 rounded-md outline-none focus:border-slate-500" />
+                                                            )
+                                                        ) : (
+                                                            <div className="font-bold text-xs text-slate-400">---</div>
+                                                        )}
+                                                        <div className="text-[9px] text-slate-500 font-medium uppercase mt-0.5">SCM Department Head</div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1440,10 +1429,16 @@
                                             <>
                                                 <button onClick={handleSys2Action} className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md transition-all w-full sm:w-auto">
                                                     {sys2Records.find(x => x.id === sys2ActiveId)?.status === 'Approved' ? '🖨️ Cetak PDF Dokumen' :
-                                                     sys2Records.find(x => x.id === sys2ActiveId)?.status === 'Pending HOD' ? 'APPROVE HOD & CETAK PDF' :
-                                                     'VALIDASI SPV (NEXT: HOD)'}
+                                                     sys2Records.find(x => x.id === sys2ActiveId)?.status === 'Pending HOD' ? '✔️ APPROVE HOD (SIMPAN)' :
+                                                     '✔️ VALIDASI SPV (NEXT: HOD)'}
                                                 </button>
-                                                <button onClick={() => { setSys2ActiveId(null); setSys2ReadOnly(false); resetSys2Context(); setActiveTab('verifikasi'); }} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-xs transition-all w-full sm:w-auto">Kembali</button>
+                                                <button onClick={() => { 
+                                                    const nextTab = sys2ActiveId ? 'verifikasi' : 'dashboard';
+                                                    setSys2ActiveId(null); 
+                                                    setSys2ReadOnly(false); 
+                                                    resetSys2Context(); 
+                                                    setActiveTab(nextTab); 
+                                                }} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-xs transition-all w-full sm:w-auto">Kembali</button>
                                             </>
                                         ) : (
                                             <>
@@ -1451,6 +1446,7 @@
                                                     {isSaving ? '⏳ Mengirim Arsip...' : 'SAVE'}
                                                 </button>
                                                 <button onClick={() => { if(confirm("Kosongkan form?")) resetSys2Context(); }} className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider transition-all w-full sm:w-auto">Reset Form</button>
+                                                <button onClick={() => { resetSys2Context(); setActiveTab('dashboard'); }} className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider transition-all w-full sm:w-auto">Kembali</button>
                                             </>
                                         )}
                                     </div>
@@ -1460,9 +1456,9 @@
                             {activeTab === 'verifikasi' && (
                                 <div className="space-y-4 animate-fade-in relative z-10">
                                     <div className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6 shadow-sm">
-                                        <div className="mb-4 border-b border-slate-100 pb-2">
+                                        <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
                                             <h3 className="text-slate-900 font-extrabold text-sm md:text-base tracking-tight flex items-center gap-1.5"><span>🛡️</span>  Weekly Inspeksi</h3>
-                                            <p className="text-[11px] text-slate-500 font-light"></p>
+                                            <button onClick={() => setActiveTab('dashboard')} className="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">⬅ Kembali</button>
                                         </div>
 
                                         <div className="overflow-x-auto custom-scrollbar">
