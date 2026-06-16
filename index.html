@@ -4,47 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Inspeksi & P2H UNIT SCM</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-        
-        body {
-            font-family: 'Inter', sans-serif;
-        }
+    
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database-compat.js"></script>
 
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
         /* --- OPTIMASI PRINT CSS --- */
         @media print {
-            /* Membuka overflow hanya pada container utama, JANGAN gunakan * (bintang) */
             html, body, #root, .min-h-screen, main { 
-                overflow: visible !important; 
+                overflow: visible !important;
                 height: auto !important; 
                 min-height: auto !important;
                 background: white !important;
                 color: black !important;
             }
-            
-            /* Sembunyikan elemen yang tidak perlu di-print */
             .print-hidden { display: none !important; }
-            
-            /* Matikan efek visual berat untuk meringankan beban render PDF */
             * { box-shadow: none !important; text-shadow: none !important; }
-            
-            /* Reset area print agar full width */
             .print-area { 
-                width: 100% !important; 
+                width: 100% !important;
                 max-width: 100% !important; 
                 margin: 0 !important; 
                 padding: 0 !important; 
                 border: none !important; 
-                overflow: visible !important; 
+                overflow: visible !important;
             }
-            
-            /* Styling form input di kertas */
             input, textarea, select { 
-                background: transparent !important; 
+                background: transparent !important;
                 border-bottom: 1px solid #000 !important; 
                 border-top: none !important; 
                 border-left: none !important; 
@@ -53,20 +47,15 @@
                 border-radius: 0 !important;
                 resize: none !important;
             }
-            
             .no-black-pdf { background-color: white !important; color: black !important; }
             canvas { border: 1px solid #ccc !important; }
-            
-            /* Cegah tabel terpotong di tengah baris */
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
-            
-            /* Helper pembatas halaman */
             .break-before-page { page-break-before: always !important; }
             .break-inside-avoid { page-break-inside: avoid !important; }
         }
-        /* -------------------------- */
         
+        /* SCROLLBAR CUSTOM */
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -78,15 +67,17 @@
     <div id="root"></div>
 
     <script type="text/babel" data-presets="react,env">
+        
+        // --- 1. INISIALISASI REACT HOOKS ---
+        const { useState, useEffect, useRef } = React;
 
-        // --- URL DATABASE ONLINE FIREBASE ---
+        // --- 2. KONFIGURASI URL & DATABASE ---
         const FIREBASE_URL = "https://scm-portal-f11c6-default-rtdb.asia-southeast1.firebasedatabase.app";
-        // --- URL UNTUK REKAP HM GOOGLE SHEET ---
         const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbzLTkRDy3yAjS_Oc9FhUADkUv59VOrbd-27rz3tdaTCbSgwcmq3Ic_IHgzJVBv5qOis7Q/exec";
-
+        
         // --- DATA LOGO PT BATUTUA TEMBAGA RAYA ---
         const btrLogoBase64 = "data:image/gif;base64,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";
-        
+
         // --- DATA SCRIPT 1 (DAILY INSPECTION & HM) ---
         const unitDataScript1 = {
             crane: {
@@ -184,7 +175,21 @@
             'Laydown Yard': "BTR-SCM-019", 'Warehouse Area': "BTR-SCM-020"
         };
 
-        // --- COMPONENT INPUT TANDA TANGAN (CANVAS DRAWING PAD) ---
+        // --- 3. INISIALISASI DATABASE FIREBASE SECARA GLOBAL ---
+        const firebaseConfig = {
+            databaseURL: FIREBASE_URL
+        };
+        
+        // Memastikan Firebase hanya diinisialisasi sekali (Cegah error duplicate)
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
+
+        // ==========================================
+        // COMPONENT TANDA TANGAN (CANVAS DRAWING PAD)
+        // ==========================================
         function SignaturePad({ onSave, savedImage, readOnly, placeholder }) {
             const canvasRef = React.useRef(null);
             const isDrawing = React.useRef(false);
@@ -198,7 +203,7 @@
                     ctx.lineCap = 'round';
                 }
             }, [readOnly, savedImage]);
-
+            
             const startDrawing = (e) => {
                 if (readOnly) return;
                 isDrawing.current = true;
@@ -212,7 +217,7 @@
                     onSave(canvasRef.current.toDataURL());
                 }
             };
-
+            
             const draw = (e) => {
                 if (!isDrawing.current || readOnly) return;
                 const canvas = canvasRef.current;
@@ -237,7 +242,7 @@
                     onSave('');
                 }
             };
-
+            
             if (savedImage) {
                 return (
                     <div className="flex flex-col items-center justify-center p-1 bg-white rounded-lg border border-slate-200">
@@ -286,19 +291,18 @@
                 const day = String(witTime.getUTCDate()).padStart(2, '0');
                 return `${year}-${month}-${day}`;
             };
-
             const getLocalTimeString = () => {
                 const d = new Date();
                 const witTime = new Date(d.getTime() + (9 * 60 * 60 * 1000));
-                
                 return String(witTime.getUTCHours()).padStart(2, '0') + ":" + String(witTime.getUTCMinutes()).padStart(2, '0');
             };
             // ------------------------------------------
-            const [systemMode, setSystemMode] = React.useState('core-dashboard'); 
+            
+            const [systemMode, setSystemMode] = React.useState('core-dashboard');
             const [activeTab, setActiveTab] = React.useState('dashboard'); 
             
             const [isSaving, setIsSaving] = React.useState(false);
-
+            
             // --- STATE UTAMA SCRIPT 1 ---
             const [sys1Unit, setSys1Unit] = React.useState('crane');
             const [sys1Meta, setSys1Meta] = React.useState({ model: '', unitNum: '', operator: '', tanggal: '', jam: '' });
@@ -310,19 +314,18 @@
 
             // HM States SCRIPT 1
             const [hmData, setHmData] = React.useState({});
-
+            
             // --- STATE UTAMA SCRIPT 2 ---
             const [sys2Area, setSys2Area] = React.useState('Container T');
             const [sys2Meta, setSys2Meta] = React.useState({ tanggal: '', jam: '', inspectedBy: '' });
             const [sys2Checks, setSys2Checks] = React.useState([]);
             const [sys2FindingsList, setSys2FindingsList] = React.useState([{ id: Date.now(), temuan: '', perbaikan: '', pic: '', target: '' }]);
-            
             // DITAMBAHKAN: sigHead ke dalam struktur state sys2Sigs
             const [sys2Sigs, setSys2Sigs] = React.useState({ sigInspector:'', nameInspector:'', nameSpv:'', nameHead:'', sigSpv:'', sigHead:'' });
             const [sys2Records, setSys2Records] = React.useState([]);
             const [sys2ActiveId, setSys2ActiveId] = React.useState(null);
             const [sys2ReadOnly, setSys2ReadOnly] = React.useState(false);
-
+            
             // Fungsi cetak PDF yang aman
             const handlePrint = (title) => {
                 const originalTitle = document.title;
@@ -345,30 +348,36 @@
             };
             // -----------------------------
 
-            // --- AMBIL DATA DARI CLOUD DATABASE ONLINE ---
+            // --- AMBIL DATA DARI CLOUD DATABASE ONLINE MENGGUNAKAN SDK FIREBASE (Lebih Cepat & Aman) ---
             const fetchCloudData = () => {
                 const tujuhHariLalu = Date.now() - (7 * 24 * 60 * 60 * 1000);
-
-                fetch(`${FIREBASE_URL}/sys1_logs.json`).then(res => res.json()).then(data => {
-                        if (data) {
-                            const parsed = Object.keys(data).map(key => data[key]).filter(item => item.id > tujuhHariLalu);
-                            setSys1Logs(parsed);
-                        }
-                    }).catch(err => console.log("Gagal konek cloud:", err));
-
-                fetch(`${FIREBASE_URL}/sys2_logs.json`).then(res => res.json()).then(data => {
-                        if (data) {
-                            const parsed = Object.keys(data).map(key => data[key]).filter(item => {
-                                    const numericId = typeof item.id === 'string' ? parseInt(item.id.replace('REC_','')) : item.id;
-                                    return numericId > tujuhHariLalu;
-                                });
-                            setSys2Records(parsed);
-                        } else {
-                            setSys2Records([]);
-                        }
-                    }).catch(err => console.log("Gagal konek cloud:", err));
+                
+                // Ambil data sys1_logs
+                db.ref('sys1_logs').once('value').then((snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const parsed = Object.keys(data).map(key => data[key]).filter(item => item.id > tujuhHariLalu);
+                        setSys1Logs(parsed);
+                    } else {
+                        setSys1Logs([]);
+                    }
+                }).catch(err => console.log("Gagal konek cloud sys1:", err));
+                
+                // Ambil data sys2_logs
+                db.ref('sys2_logs').once('value').then((snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        const parsed = Object.keys(data).map(key => data[key]).filter(item => {
+                            const numericId = typeof item.id === 'string' ? parseInt(item.id.replace('REC_','')) : item.id;
+                            return numericId > tujuhHariLalu;
+                        });
+                        setSys2Records(parsed);
+                    } else {
+                        setSys2Records([]);
+                    }
+                }).catch(err => console.log("Gagal konek cloud sys2:", err));
             };
-
+            
             React.useEffect(() => {
                 fetchCloudData();
                 
@@ -384,7 +393,7 @@
                     jam: getLocalTimeString() 
                 });
             }, [systemMode, activeTab]);
-
+            
             React.useEffect(() => {
                 if (!sys2ActiveId) {
                     const libraryItems = weeklyLibrary[sys2Area] || [];
@@ -409,7 +418,7 @@
                     return;
                 }
                 
-                setIsSaving(true); 
+                setIsSaving(true);
                 const recordId = Date.now();
                 const newRecord = {
                     id: recordId,
@@ -426,28 +435,29 @@
                     ttdOperator: sys1TtdOp,
                     ttdSupervisor: null
                 };
-
-                fetch(`${FIREBASE_URL}/sys1_logs/${recordId}.json`, {
-                    method: 'PUT',
-                    body: JSON.stringify(newRecord)
-                })
+                
+                // Gunakan Firebase SDK untuk menyimpan
+                db.ref(`sys1_logs/${recordId}`).set(newRecord)
                 .then(() => {
                     setIsSaving(false); 
                     alert("✅ Terima Kasih Kalwedo");
                     setActiveTab('dashboard');
                     resetSys1Form();
                     fetchCloudData();
-                }).catch(()=> { setIsSaving(false); alert("❌ Gagal Terkoneksi!"); });
+                }).catch(()=> { 
+                    setIsSaving(false); 
+                    alert("❌ Gagal Terkoneksi!"); 
+                });
             };
 
             const deleteSys1Log = (id, e) => {
                 e.stopPropagation();
                 if(confirm("Apakah Anda yakin ingin menghapus data log pemeriksaan harian ini?")) {
-                    fetch(`${FIREBASE_URL}/sys1_logs/${id}.json`, { method: 'DELETE' })
+                    db.ref(`sys1_logs/${id}`).remove()
                     .then(() => fetchCloudData());
                 }
             };
-
+            
             const openSys1ForSPV = (id) => {
                 const record = sys1Logs.find(f => f.id == id);
                 if (!record) return;
@@ -463,11 +473,8 @@
             const saveSys1SpvApproval = () => {
                 const targetRecord = sys1Logs.find(f => f.id == sys1ActiveRecordId);
                 const updatedRecord = { ...targetRecord, status: 'approved', ttdSupervisor: sys1TtdSpv || '' };
-
-                fetch(`${FIREBASE_URL}/sys1_logs/${sys1ActiveRecordId}.json`, {
-                    method: 'PUT',
-                    body: JSON.stringify(updatedRecord)
-                })
+                
+                db.ref(`sys1_logs/${sys1ActiveRecordId}`).set(updatedRecord)
                 .then(() => {
                     alert("✅ Terima Kasih");
                     setActiveTab('antrean');
@@ -490,8 +497,8 @@
                 let valid = true;
                 
                 const formData = new URLSearchParams();
-                let adaDataDikirim = false; 
-
+                let adaDataDikirim = false;
+                
                 btrUnits.concat(pliUnits).forEach(u => {
                     const p = parseFloat(hmData[`pagi_${u.id}`]);
                     const m = parseFloat(hmData[`malam_${u.id}`]);
@@ -511,7 +518,7 @@
                         formData.append(`ket_${u.id}`, ket);
                     }
                 });
-
+                
                 if(!valid) {
                     alert("⛔ GAGAL: HM Malam tidak boleh lebih kecil dari HM Pagi!");
                     return;
@@ -563,7 +570,6 @@
                             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                             
                             const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
-                            
                             setSys2Checks(prev => {
                                 const updated = [...prev];
                                 updated[idx] = { ...updated[idx], img: compressedBase64 };
@@ -575,7 +581,7 @@
                     reader.readAsDataURL(file);
                 }
             };
-
+            
             const handleSys2CheckVal = (idx, status) => {
                 setSys2Checks(prev => {
                     const updated = [...prev];
@@ -583,7 +589,7 @@
                     return updated;
                 });
             };
-
+            
             const addSys2FindingRow = () => {
                 setSys2FindingsList([...sys2FindingsList, { id: Date.now(), temuan: '', perbaikan: '', pic: '', target: '' }]);
             };
@@ -593,7 +599,7 @@
                     setSys2FindingsList(sys2FindingsList.filter(row => row.id !== id));
                 }
             };
-
+            
             const updateSys2FindingRow = (id, field, value) => {
                 setSys2FindingsList(sys2FindingsList.map(row => row.id === id ? { ...row, [field]: value } : row));
             };
@@ -608,8 +614,7 @@
                     return;
                 }
 
-                setIsSaving(true); 
-
+                setIsSaving(true);
                 const targetId = sys2ActiveId || 'REC_' + Date.now();
                 const newRecord = {
                     id: targetId,
@@ -628,11 +633,8 @@
                     sigHead: sys2Sigs.sigHead || '', // Tambahan untuk menyimpan TTD HOD
                     status: "Pending" 
                 };
-
-                fetch(`${FIREBASE_URL}/sys2_logs/${targetId}.json`, {
-                    method: 'PUT',
-                    body: JSON.stringify(newRecord)
-                })
+                
+                db.ref(`sys2_logs/${targetId}`).set(newRecord)
                 .then(() => {
                     setIsSaving(false); 
                     alert("🎯 Terima Kasih, Dokumen Berhasil Disimpan.");
@@ -649,14 +651,10 @@
             const deleteSys2Record = (id, e) => {
                 if (e) e.stopPropagation();
                 if(confirm("Apakah Anda yakin ingin menghapus dokumen mingguan ini secara permanen dari database?")) {
-                    fetch(`${FIREBASE_URL}/sys2_logs/${id}.json`, { method: 'DELETE' })
-                    .then(res => {
-                        if(res.ok){
-                            alert("✅ Data dihapus");
-                            fetchCloudData();
-                        } else {
-                            alert("❌ Gagal menghapus data di server cloud.");
-                        }
+                    db.ref(`sys2_logs/${id}`).remove()
+                    .then(() => {
+                        alert("✅ Data dihapus");
+                        fetchCloudData();
                     })
                     .catch(err => {
                         console.error(err);
@@ -664,7 +662,7 @@
                     });
                 }
             };
-
+            
             const resetSys2Context = () => {
                 setSys2ActiveId(null);
                 setSys2Meta({ tanggal: getLocalDateString(), jam: getLocalTimeString(), inspectedBy: '' }); 
@@ -676,7 +674,7 @@
                 setSys2Sigs({ sigInspector:'', nameInspector:'', nameSpv:'', nameHead:'', sigSpv:'', sigHead:'' });
                 setSys2ReadOnly(false);
             };
-
+            
             const openSys2Record = (rec) => {
                 setSys2ActiveId(rec.id);
                 setSys2Area(rec.area);
@@ -700,7 +698,7 @@
                 if (!sys2ActiveId) return;
                 const targetRecord = sys2Records.find(f => f.id === sys2ActiveId);
                 if (!targetRecord) return;
-
+                
                 if (targetRecord.status === 'Pending') {
                     if (!sys2Sigs.sigSpv || !sys2Sigs.nameSpv.trim()) {
                         alert("⚠️ Supervisor SCM wajib mengisi nama dan menandatangani berkas sebelum persetujuan!");
@@ -712,10 +710,8 @@
                         sigSpv: sys2Sigs.sigSpv,
                         nameSpv: sys2Sigs.nameSpv
                     };
-                    fetch(`${FIREBASE_URL}/sys2_logs/${sys2ActiveId}.json`, {
-                        method: 'PUT',
-                        body: JSON.stringify(updatedRecord)
-                    }).then(() => {
+                    
+                    db.ref(`sys2_logs/${sys2ActiveId}`).set(updatedRecord).then(() => {
                         alert("🎯 Terima kasih, Dokumen Divalidasi. Menunggu persetujuan HOD.");
                         setActiveTab('verifikasi');
                         setSys2ActiveId(null);
@@ -723,7 +719,7 @@
                         resetSys2Context();
                         fetchCloudData();
                     }).catch(e => console.error(e));
-
+                    
                 } else if (targetRecord.status === 'Pending HOD') {
                     if (!sys2Sigs.sigHead || !sys2Sigs.nameHead.trim()) {
                         alert("⚠️ SCM Department Head wajib mengisi nama dan menandatangani berkas sebelum persetujuan akhir!");
@@ -735,10 +731,8 @@
                         sigHead: sys2Sigs.sigHead,
                         nameHead: sys2Sigs.nameHead
                     };
-                    fetch(`${FIREBASE_URL}/sys2_logs/${sys2ActiveId}.json`, {
-                        method: 'PUT',
-                        body: JSON.stringify(updatedRecord)
-                    }).then(() => {
+                    
+                    db.ref(`sys2_logs/${sys2ActiveId}`).set(updatedRecord).then(() => {
                         alert("🎯 Dokumen berhasil disetujui (Approved). Cetak PDF dapat dilakukan oleh Admin.");
                         setActiveTab('verifikasi');
                         setSys2ActiveId(null);
@@ -746,12 +740,12 @@
                         resetSys2Context();
                         fetchCloudData();
                     }).catch(e => console.error(e));
-
+                    
                 } else if (targetRecord.status === 'Approved') {
                     handlePrint(`Weekly_${sys2Meta.tanggal}_${sys2Area}`);
                 }
             };
-
+            
             if (systemMode === 'core-dashboard') {
                 return (
                     <div className="min-h-screen bg-slate-950 relative flex flex-col items-center justify-center p-4 md:p-8 text-white print-hidden overflow-hidden">
@@ -1437,7 +1431,7 @@
                                                     setSys2ActiveId(null); 
                                                     setSys2ReadOnly(false); 
                                                     resetSys2Context(); 
-                                                    setActiveTab(nextTab); 
+                                                    setActiveTab(nextTab);
                                                 }} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-xs transition-all w-full sm:w-auto">Kembali</button>
                                             </>
                                         ) : (
