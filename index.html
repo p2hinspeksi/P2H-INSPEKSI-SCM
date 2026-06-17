@@ -10,15 +10,24 @@
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
+    <script>
+      Babel.registerPreset("react-classic", {
+        presets: [
+          [Babel.availablePresets["react"], { "runtime": "classic" }]
+        ]
+      });
+    </script>
+    
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
     <style>
+        /* (Biarkan isi CSS Anda tetap ada di bawah sini, jangan dihapus) */
         body { font-family: 'Inter', sans-serif; }
         
-        /* --- OPTIMASI PRINT CSS --- */
         @media print {
             html, body, #root, .min-h-screen, main { 
                 overflow: visible !important;
@@ -55,7 +64,6 @@
             .break-inside-avoid { page-break-inside: avoid !important; }
         }
         
-        /* SCROLLBAR CUSTOM */
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -66,7 +74,7 @@
 
     <div id="root"></div>
 
-   <script type="module" data-presets="react,env">
+   <script type="text/babel" data-presets="react-classic">
         
         // --- 1. INISIALISASI REACT HOOKS ---
         const { useState, useEffect, useRef } = React;
