@@ -709,7 +709,7 @@
                 
                 if (targetRecord.status === 'Pending') {
                     if (!sys2Sigs.sigSpv || !sys2Sigs.nameSpv.trim()) {
-                        alert("⚠️ Supervisor SCM wajib mengisi nama dan menandatangani berkas sebelum persetujuan!");
+                        alert("⚠️ Supervisor SCM wajib mengisi nama dan menandatangani form!");
                         return;
                     }
                     const updatedRecord = { 
@@ -720,7 +720,7 @@
                     };
                     
                     db.ref(`sys2_logs/${sys2ActiveId}`).set(updatedRecord).then(() => {
-                        alert("🎯 Terima kasih, Dokumen Divalidasi. Menunggu persetujuan HOD.");
+                        alert("🎯 Terima kasih");
                         setActiveTab('verifikasi');
                         setSys2ActiveId(null);
                         setSys2ReadOnly(false);
@@ -729,19 +729,20 @@
                     }).catch(e => console.error(e));
                     
                 } else if (targetRecord.status === 'Pending HOD') {
-                    if (!sys2Sigs.sigHead || !sys2Sigs.nameHead.trim()) {
-                        alert("⚠️ SCM Department Head wajib mengisi nama dan menandatangani berkas sebelum persetujuan akhir!");
+                    // REVISI: Validasi HOD diubah, hanya cek input nama saja (tanpa TTD)
+                    if (!sys2Sigs.nameHead.trim()) {
+                        alert("⚠️ Isi Nama SCM Department Head ");
                         return;
                     }
                     const updatedRecord = { 
                         ...targetRecord, 
                         status: 'Approved',
-                        sigHead: sys2Sigs.sigHead,
+                        sigHead: sys2Sigs.sigHead || '', // Tetap aman jika kosong
                         nameHead: sys2Sigs.nameHead
                     };
                     
                     db.ref(`sys2_logs/${sys2ActiveId}`).set(updatedRecord).then(() => {
-                        alert("🎯 Dokumen berhasil disetujui (Approved). Cetak PDF dapat dilakukan oleh Admin.");
+                        alert("🎯 Terima kasih.");
                         setActiveTab('verifikasi');
                         setSys2ActiveId(null);
                         setSys2ReadOnly(false);
@@ -1399,16 +1400,12 @@
                                                 {/* TANDA TANGAN HOD */}
                                                 <div className="p-3 flex flex-col justify-between items-center min-h-[160px] no-black-pdf">
                                                     <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">DISETUJUI</span>
-                                                    {sys2ActiveId && sys2Records.find(x => x.id === sys2ActiveId)?.status !== 'Pending' ? (
-                                                        <SignaturePad 
-                                                            savedImage={sys2Sigs.sigHead} 
-                                                            onSave={(img) => setSys2Sigs({...sys2Sigs, sigHead: img})} 
-                                                            readOnly={sys2Records.find(x => x.id === sys2ActiveId)?.status === 'Approved'} 
-                                                            placeholder="Department Head"
-                                                        />
-                                                    ) : (
-                                                        <div className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-3 py-2 border border-amber-200 rounded-xl my-auto italic">🔒 </div>
-                                                    )}
+                                                    
+                                                    {/* Kotak kosong dengan ukuran & style persis seperti box TTD Supervisor (w-40 h-20) */}
+                                                    <div className="flex flex-col items-center justify-center p-1 bg-white rounded-lg border border-slate-200 my-2">
+                                                        <div className="w-40 h-20"></div> {/* Dibiarkan kosong bersih untuk E-Sign nanti */}
+                                                    </div>
+
                                                     <div className="w-full px-1">
                                                         {sys2ActiveId && sys2Records.find(x => x.id === sys2ActiveId)?.status !== 'Pending' ? (
                                                             sys2Records.find(x => x.id === sys2ActiveId)?.status === 'Approved' ? (
