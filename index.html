@@ -304,6 +304,14 @@
         // ==========================================
         // COMPONENT UTAMA: PORTAL INTEGRASI
         // ==========================================
+        const showToast = (message) => {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:9999;max-width:calc(100vw - 2rem);padding:.75rem 1rem;border:1px solid rgba(148,163,184,.5);border-radius:.75rem;background:rgba(15,23,42,.95);color:white;font:600 12px Inter,sans-serif;box-shadow:0 10px 25px rgba(0,0,0,.25);text-align:center;';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        };
+
         function App() {
             // --- FUNGSI HELPER TANGGAL LOKAL (DIPAKSA KE WIT / UTC+9) ---
             const getLocalDateString = () => {
@@ -326,6 +334,8 @@
             const [activeTab, setActiveTab] = React.useState('dashboard'); 
             
             const [isSaving, setIsSaving] = React.useState(false);
+            const [saveNotice, setSaveNotice] = React.useState(null);
+            const alert = showToast;
             
             // --- STATE UTAMA SCRIPT 1 ---
             const [sys1Unit, setSys1Unit] = React.useState('crane');
@@ -465,13 +475,16 @@
                 db.ref(`sys1_logs/${recordId}`).set(newRecord)
                 .then(() => {
                     setIsSaving(false); 
-                    alert("✅ Terima Kasih Kalwedo");
+                    setSaveNotice({ type: 'success', message: 'Terima Kasih' });
+                    setTimeout(() => setSaveNotice(null), 3000);
+                    setSys1Logs(prev => [newRecord, ...prev]);
                     setActiveTab('dashboard');
                     resetSys1Form();
                     fetchCloudData();
                 }).catch(()=> { 
                     setIsSaving(false); 
-                    alert("❌ Gagal Terkoneksi!"); 
+                    setSaveNotice({ type: 'error', message: 'Data gagal disimpan. Periksa koneksi lalu coba lagi.' });
+                    setTimeout(() => setSaveNotice(null), 4000);
                 });
             };
 
@@ -567,7 +580,8 @@
                         e.target.querySelectorAll('input').forEach(input => {
                             if (input.type !== 'date') input.value = '';
                         });
-                        setHmSaveNotice({ type: 'success', message: 'Data Hour Meter berhasil tersimpan ke Google Sheet.' });
+                        setHmSaveNotice({ type: 'success', message: 'Terima Kasih' });
+                        setTimeout(() => setHmSaveNotice(null), 3000);
                         return;
                     }
 
@@ -578,6 +592,7 @@
                 .catch(error => {
                     console.error('Error:', error);
                     setHmSaveNotice({ type: 'error', message: 'Data belum dapat dikonfirmasi tersimpan. Periksa koneksi lalu coba lagi.' });
+                    setTimeout(() => setHmSaveNotice(null), 4000);
                 });
             };
 
@@ -665,14 +680,16 @@
                 db.ref(`sys2_logs/${targetId}`).set(newRecord)
                 .then(() => {
                     setIsSaving(false); 
-                    alert("🎯 Terima Kasih");
+                    setSaveNotice({ type: 'success', message: 'Terima Kasih' });
+                    setTimeout(() => setSaveNotice(null), 3000);
                     setActiveTab('dashboard'); // Kembali ke Dashboard otomatis
                     resetSys2Context();
                     fetchCloudData();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }).catch(err => {
                     setIsSaving(false);
-                    alert("❌ Koneksi Gagal, pastikan internet lancar!");
+                    setSaveNotice({ type: 'error', message: 'Data gagal disimpan. Periksa koneksi lalu coba lagi.' });
+                    setTimeout(() => setSaveNotice(null), 4000);
                 });
             };
 
@@ -777,12 +794,8 @@
 
             const trackedP2HUnits = btrUnits.concat(pliUnits);
             const todayP2HLogs = sys1Logs.filter(record => record.tanggal === getLocalDateString());
-            const completedP2HUnitIds = new Set(todayP2HLogs.map(record => {
-                const recordedUnit = String(record.unitNum || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-                const matchedUnit = trackedP2HUnits.find(unit => [unit.id, unit.n].some(value => String(value).toUpperCase().replace(/[^A-Z0-9]/g, '') === recordedUnit));
-                return matchedUnit ? matchedUnit.id : null;
-            }).filter(Boolean));
-            const completedP2HCount = completedP2HUnitIds.size;
+            const completedP2HUnitNumbers = new Set(todayP2HLogs.map(record => String(record.unitNum || '').toUpperCase().replace(/[^A-Z0-9]/g, '')).filter(Boolean));
+            const completedP2HCount = Math.min(completedP2HUnitNumbers.size, trackedP2HUnits.length);
             const pendingP2HCount = Math.max(trackedP2HUnits.length - completedP2HCount, 0);
             
             if (systemMode === 'core-dashboard') {
@@ -872,6 +885,13 @@
                         <main className={`flex-1 p-2 sm:p-4 md:p-8 ${activeTab === 'form' ? 'max-w-5xl' : 'max-w-7xl'} w-full mx-auto print-area no-black-pdf relative z-10`}>
                             {activeTab === 'dashboard' && (
                                 <div className="space-y-6 py-2 animate-fade-in">
+                                    {saveNotice && (
+                                        <div className={`rounded-xl border px-4 py-3 text-sm font-bold ${saveNotice.type === 'success' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-red-300 bg-red-50 text-red-700'}`} role="status">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <span>{saveNotice.type === 'success' ? '✓' : '!'} {saveNotice.message}</span>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-6 items-start">
                                     <div className="bg-slate-900/60 border border-slate-700 rounded-2xl p-4 md:p-5 shadow-xl print-hidden lg:sticky lg:top-24">
                                         <div className="mb-5 flex items-center gap-3">
@@ -943,7 +963,6 @@
                                             <div className={`mb-5 rounded-xl border px-4 py-3 text-sm font-bold ${hmSaveNotice.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`} role="status">
                                                 <div className="flex items-center justify-between gap-3">
                                                     <span>{hmSaveNotice.type === 'success' ? '✓' : '!' } {hmSaveNotice.message}</span>
-                                                    <button type="button" onClick={() => setHmSaveNotice(null)} className="text-xs font-black opacity-70 hover:opacity-100" aria-label="Tutup pemberitahuan">✕</button>
                                                 </div>
                                             </div>
                                         )}
@@ -1240,6 +1259,13 @@
                         <main className={`flex-1 p-2 sm:p-4 md:p-8 ${activeTab === 'form' ? 'max-w-4xl' : 'max-w-5xl'} w-full mx-auto print-area no-black-pdf relative z-10`}>
                             {activeTab === 'dashboard' && (
                                 <div className="space-y-6 py-2 animate-fade-in">
+                                    {saveNotice && (
+                                        <div className={`rounded-xl border px-4 py-3 text-sm font-bold ${saveNotice.type === 'success' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-red-300 bg-red-50 text-red-700'}`} role="status">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <span>{saveNotice.type === 'success' ? '✓' : '!'} {saveNotice.message}</span>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="text-center mb-8">
                                         <span className="bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full inline-block shadow-xs">SUPPLY CHAIN MANAGEMENT</span>
                                         <h2 className="text-3xl md:text-4xl font-black text-slate-100 tracking-tight mt-3 uppercase">WEEKLY INSPECTION </h2>
