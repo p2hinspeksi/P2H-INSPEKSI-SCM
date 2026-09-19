@@ -164,7 +164,7 @@
 
         const btrUnits = [
             {id:"fl04", n:"FL-04"}, {id:"fl05", n:"FL-05"}, {id:"fe", n:"Forklift Elec"}, 
-            {id:"lv149", n:"LV-157"}, {id:"lt08", n:"LT-08"}, {id:"lt09", n:"LT-09"}, 
+            {id:"lv149", n:"LV-158"}, {id:"lt08", n:"LT-08"}, {id:"lt09", n:"LT-09"}, 
             {id:"ct01", n:"CT-01"}, {id:"pm001", n:"PM-001"}, {id:"rs001", n:"RS-001"}
         ];
         const pliUnits = [
@@ -445,7 +445,7 @@
 
             const submitSys1ToLog = () => {
                 if (!sys1Meta.tanggal || !sys1Meta.operator || !sys1Meta.unitNum) {
-                    alert("⚠️ Kolom No. Unit dan Nama Operator wajib diisi ");
+                    alert("⚠️ Kolom No. Unit, Nama Operator, dan Tanggal wajib diisi ");
                     return;
                 }
                 if (!sys1TtdOp) {
@@ -474,6 +474,24 @@
                 // Gunakan Firebase SDK untuk menyimpan
                 db.ref(`sys1_logs/${recordId}`).set(newRecord)
                 .then(() => {
+                    const p2hSheetData = new URLSearchParams({
+                        jenis_data: 'P2H',
+                        tanggal: sys1Meta.tanggal,
+                        jam: sys1Meta.jam || '',
+                        unit: unitDataScript1[sys1Unit].name,
+                        unitNum: sys1Meta.unitNum,
+                        operator: sys1Meta.operator,
+                        status: 'pending'
+                    });
+                    const normalizedUnitNumber = String(sys1Meta.unitNum).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    p2hSheetData.append(`tgl_${normalizedUnitNumber}`, sys1Meta.tanggal);
+                    p2hSheetData.append(`ket_${normalizedUnitNumber}`, `P2H - ${sys1Meta.operator}`);
+                    fetch(GOOGLE_SHEET_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                        body: p2hSheetData.toString()
+                    }).catch(error => console.error('Gagal sinkronisasi P2H ke Google Sheet:', error));
                     setIsSaving(false); 
                     setSaveNotice({ type: 'success', message: 'Terima Kasih' });
                     setTimeout(() => setSaveNotice(null), 3000);
@@ -1056,32 +1074,31 @@
                                         </div>
 
                                         
-                                        {/* Kolom 1 */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-x-8 gap-y-3 text-xs font-medium mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-900">
-                                        <div className="space-y-2">
-                                            <div className="flex border-b border-slate-200 pb-1.5 items-center">
-                                                <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">MODEL UNIT</span><span className="mr-1">:</span>
-                                                {sys1ActiveRecordId !== null ? <span className="font-extrabold text-slate-900 uppercase">{sys1Meta.model}</span> : <input type="text" value={sys1Meta.model} onChange={e=>setSys1Meta({...sys1Meta, model: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-24 gap-y-2 mb-6 border border-slate-300 p-2 md:p-2.5 text-[10px] font-black uppercase text-slate-900 rounded-sm">
+                                            <div className="space-y-2">
+                                                <div className="flex h-8 items-center border border-slate-300 bg-white">
+                                                    <label className="w-[135px] shrink-0 px-3 tracking-wide">Model Unit</label><span className="shrink-0">:</span>
+                                                    {sys1ActiveRecordId !== null ? <span className="min-w-0 flex-1 truncate px-3 font-extrabold">{sys1Meta.model || '-'}</span> : <input type="text" value={sys1Meta.model} onChange={e=>setSys1Meta({...sys1Meta, model: e.target.value})} className="min-w-0 flex-1 bg-transparent px-3 font-extrabold uppercase outline-none" />}
+                                                </div>
+                                                <div className="flex h-8 items-center border border-slate-300 bg-white">
+                                                    <label className="w-[135px] shrink-0 px-3 tracking-wide">Unit Number</label><span className="shrink-0">:</span>
+                                                    {sys1ActiveRecordId !== null ? <span className="min-w-0 flex-1 truncate px-3 font-extrabold">{sys1Meta.unitNum}</span> : <input type="text" value={sys1Meta.unitNum} onChange={e=>setSys1Meta({...sys1Meta, unitNum: e.target.value})} className="min-w-0 flex-1 bg-transparent px-3 font-extrabold uppercase outline-none" />}
+                                                </div>
+                                                <div className="flex h-8 items-center border border-slate-300 bg-white">
+                                                    <label className="w-[135px] shrink-0 px-3 tracking-wide">Nama Operator</label><span className="shrink-0">:</span>
+                                                    {sys1ActiveRecordId !== null ? <span className="min-w-0 flex-1 truncate px-3 font-extrabold">{sys1Meta.operator}</span> : <input type="text" value={sys1Meta.operator} onChange={e=>setSys1Meta({...sys1Meta, operator: e.target.value})} className="min-w-0 flex-1 bg-transparent px-3 font-extrabold uppercase outline-none" />}
+                                                </div>
                                             </div>
-                                            <div className="flex border-b border-slate-200 pb-1.5 items-center">
-                                                <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">TGL PEMERIKSAAN</span><span className="mr-1">:</span>
-                                                {sys1ActiveRecordId !== null ? <span className="font-bold text-slate-800">{sys1Meta.tanggal}</span> : <input type="date" value={sys1Meta.tanggal} onChange={e=>setSys1Meta({...sys1Meta, tanggal: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
+                                            <div className="space-y-2">
+                                                <div className="flex h-8 items-center border border-slate-300 bg-white">
+                                                    <label className="w-[135px] shrink-0 px-3 tracking-wide">Tgl Pemeriksaan</label><span className="shrink-0">:</span>
+                                                    {sys1ActiveRecordId !== null ? <span className="min-w-0 flex-1 truncate px-3 font-extrabold">{sys1Meta.tanggal}</span> : <input type="date" value={sys1Meta.tanggal} onChange={e=>setSys1Meta({...sys1Meta, tanggal: e.target.value})} className="min-w-0 flex-1 bg-transparent px-3 font-extrabold outline-none" />}
+                                                </div>
+                                                <div className="flex h-8 items-center border border-slate-300 bg-white">
+                                                    <label className="w-[135px] shrink-0 px-3 tracking-wide">Jam Check</label><span className="shrink-0">:</span>
+                                                    {sys1ActiveRecordId !== null ? <span className="min-w-0 flex-1 truncate px-3 font-extrabold">{sys1Meta.jam || '-'}</span> : <input type="time" value={sys1Meta.jam} onChange={e=>setSys1Meta({...sys1Meta, jam: e.target.value})} className="min-w-0 flex-1 bg-transparent px-3 font-extrabold outline-none" />}
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div className="flex border-b border-slate-200 pb-1.5 items-center">
-                                                <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">UNIT NUMBER</span><span className="mr-1">:</span>
-                                                {sys1ActiveRecordId !== null ? <span className="font-black text-slate-900 uppercase truncate">{sys1Meta.unitNum}</span> : <input type="text" value={sys1Meta.unitNum} onChange={e=>setSys1Meta({...sys1Meta, unitNum: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
-                                            </div>
-                                            <div className="flex border-b border-slate-200 pb-1.5 items-center">
-                                                <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">JAM CHECK</span><span className="mr-1">:</span>
-                                                {sys1ActiveRecordId !== null ? <span className="font-bold text-slate-800">{sys1Meta.jam}</span> : <input type="time" value={sys1Meta.jam} onChange={e=>setSys1Meta({...sys1Meta, jam: e.target.value})} className="flex-1 bg-transparent font-bold text-slate-900 outline-none w-full" />}
-                                            </div>
-                                        </div>
-                                        <div className="sm:col-span-2 print:col-span-2 flex border-b border-slate-200 pb-1.5 items-center mt-1">
-                                            <span className="w-[125px] text-slate-500 font-bold uppercase shrink-0">NAMA OPERATOR</span><span className="mr-1">:</span>
-                                            {sys1ActiveRecordId !== null ? <span className="font-black text-slate-900 bg-slate-200 px-2 py-0.5 rounded">{sys1Meta.operator}</span> : <input type="text" value={sys1Meta.operator} onChange={e=>setSys1Meta({...sys1Meta, operator: e.target.value})} placeholder="Ketik nama operator..." className="flex-1 bg-transparent font-semibold text-slate-800 placeholder-slate-400 outline-none w-full" />}
-                                        </div>
                                         </div>
                                         
                                         <div className="border border-slate-200 rounded-xl overflow-hidden mb-6 shadow-xs">
